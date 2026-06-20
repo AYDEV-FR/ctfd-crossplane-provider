@@ -175,27 +175,6 @@ test.e2e:
 .PHONY: test.e2e
 
 # ====================================================================================
-# Helm chart (dploy-chart/ctfd)
-
-HELM_OCI_REPO ?= oci://ghcr.io/aydev-fr/charts
-CHART_DIR := dploy-chart/ctfd
-CHART_OUT := _output/charts
-
-helm.lint:
-	@helm lint $(CHART_DIR)
-
-# Package the chart into _output/charts (version comes from Chart.yaml).
-helm.package: helm.lint
-	@mkdir -p $(CHART_OUT)
-	@helm package $(CHART_DIR) -d $(CHART_OUT)
-
-# Push the packaged chart to the OCI registry (needs `helm registry login`).
-helm.push: helm.package
-	@helm push $(CHART_OUT)/ctfd-*.tgz $(HELM_OCI_REPO)
-
-.PHONY: helm.lint helm.package helm.push
-
-# ====================================================================================
 # Provider package (xpkg) — publish to a registry (default: GHCR)
 
 PROVIDER_IMAGE ?= ghcr.io/aydev-fr/provider-ctfd

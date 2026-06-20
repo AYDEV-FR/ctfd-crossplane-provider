@@ -42,10 +42,3 @@ jobs:
           cache: true
       - run: go build ./...
       - run: go test -race ./...
-
-  helm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: azure/setup-helm@v4
-      - run: helm lint dploy-chart/ctfd

@@ -68,36 +68,14 @@ required (3.7.x and earlier reject it with a 500). The e2e suite runs against
 
 ## Deploying CTFd (Helm chart)
 
-This repo ships a Helm chart, [`dploy-chart/ctfd`](dploy-chart/ctfd), to run the CTFd
-instance the provider manages. Its headline feature is installing **CTFd plugins
-from OCI images** via Kubernetes Image Volumes — no custom CTFd image rebuild.
-The OIDC IdP plugin is turnkey (plugin + vendored deps + provisioned apps from
-one block):
-
-```yaml
-oidc:
-  enabled: true
-  apps:
-    - name: Example App
-      client_id: example-app
-      type: public
-      redirect_uris: [https://app.example.com/oauth/callback]
-```
-
-…or mount any plugin generically with `plugins[]` / `extraVolumes`.
-
-The chart deploys a **single CTFd instance** (CTFd is single-tenant — not for
-multi-instance). With the OIDC IdP plugin, CTFd becomes an OAuth2/OIDC provider,
-a good way to **link it with Dploy** (register Dploy as an OIDC app so players
-get "Log in with CTFd" SSO).
-
-With `bootstrap.enabled` / `providerConfig.enabled` it also runs the CTFd setup
-wizard and wires the provider credentials, so `helm install` yields an instance
-provider-ctfd can manage with no manual step. See
-[`dploy-chart/ctfd/README.md`](dploy-chart/ctfd/README.md) and
-[`dploy-chart/ctfd/examples/oidc-values.yaml`](dploy-chart/ctfd/examples/oidc-values.yaml). Release it with
-`make helm.package` / `make helm.push` (or the `chart-release` workflow on a
-`chart-v*` tag).
+A Helm chart to run the CTFd instance this provider manages lives in a separate
+repo: **[AYDEV-FR/dploy-charts](https://github.com/AYDEV-FR/dploy-charts)** (the
+`ctfd` chart). It installs **CTFd plugins from OCI images** via Kubernetes Image
+Volumes (no custom CTFd image) and is turnkey for the OIDC IdP plugin — a good
+way to link CTFd with **Dploy** ("Log in with CTFd" SSO). It can also bootstrap
+CTFd and wire this provider's credentials, so `helm install` yields an instance
+provider-ctfd manages with no manual step. It deploys a **single** CTFd instance
+(CTFd is single-tenant — not for multi-instance).
 
 ## Managed resources
 
