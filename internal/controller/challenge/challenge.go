@@ -144,14 +144,14 @@ func (e *external) Observe(ctx context.Context, cr *v1alpha1.Challenge) (managed
 		// Crossplane defaults the external-name annotation to the resource's
 		// metadata.name. Until Create assigns the numeric CTFd ID, a non-numeric
 		// external-name means the challenge does not exist yet, so Create runs.
-		return managed.ExternalObservation{ResourceExists: false}, nil
+		return managed.ExternalObservation{ResourceExists: false}, nil //nolint:nilerr // a non-numeric external-name means "not created yet"
 	}
 
 	ch, _, err := e.client.GetChallenge(cid, ctfd.WithContext(ctx))
 	if err != nil {
 		// The challenge could not be retrieved: treat it as absent so the
 		// managed reconciler re-creates it.
-		return managed.ExternalObservation{ResourceExists: false}, nil
+		return managed.ExternalObservation{ResourceExists: false}, nil //nolint:nilerr // a failed GET means the challenge is gone; recreate it
 	}
 
 	var req *ctfd.Requirements
@@ -220,7 +220,7 @@ func (e *external) Delete(ctx context.Context, cr *v1alpha1.Challenge) (managed.
 	cid, err := strconv.Atoi(id)
 	if err != nil {
 		// Never created (external-name still defaults to the resource name).
-		return managed.ExternalDelete{}, nil
+		return managed.ExternalDelete{}, nil //nolint:nilerr // nothing to delete if it was never created
 	}
 
 	if _, err := e.client.DeleteChallenge(cid, ctfd.WithContext(ctx)); err != nil {

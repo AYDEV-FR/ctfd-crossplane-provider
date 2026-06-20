@@ -114,6 +114,8 @@ func ChallengeObservation(ch *ctfd.Challenge, flags []*ctfd.Flag, hints []*ctfd.
 // isUpToDate reports whether the observed challenge matches the desired
 // parameters. Only fields the user explicitly set are enforced, so CTFd
 // defaults for unset optional fields do not cause perpetual updates.
+//
+//nolint:gocyclo // a flat sequence of field comparisons; splitting hurts readability
 func isUpToDate(p v1alpha1.ChallengeParameters, ch *ctfd.Challenge, req *ctfd.Requirements) bool {
 	switch {
 	case ch.Name != p.Name,

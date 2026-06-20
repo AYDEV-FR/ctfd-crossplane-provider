@@ -144,7 +144,7 @@ func (e *external) Observe(ctx context.Context, cr *v1alpha1.Page) (managed.Exte
 
 	p, _, err := e.client.GetPage(id, ctfd.WithContext(ctx))
 	if err != nil {
-		return managed.ExternalObservation{ResourceExists: false}, nil
+		return managed.ExternalObservation{ResourceExists: false}, nil //nolint:nilerr // a failed GET means the page is gone; recreate it
 	}
 
 	cr.Status.AtProvider = v1alpha1.PageObservation{ID: p.ID, Route: p.Route}

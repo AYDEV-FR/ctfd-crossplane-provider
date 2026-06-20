@@ -101,7 +101,7 @@ func waitReady(url string, timeout time.Duration) error {
 	client := noRedirectClient()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		resp, err := client.Get(url + "/setup")
+		resp, err := httpGet(client, url+"/setup")
 		if err == nil {
 			_ = resp.Body.Close()
 			if resp.StatusCode < 500 {
@@ -125,7 +125,7 @@ func ensureToken(url, name, email, password string) (string, error) {
 // isConfigured reports whether CTFd is already set up: a configured instance
 // redirects /setup to /, a fresh one serves the wizard (200).
 func isConfigured(url string) bool {
-	resp, err := noRedirectClient().Get(url + "/setup")
+	resp, err := httpGet(noRedirectClient(), url+"/setup")
 	if err != nil {
 		return false
 	}
@@ -140,6 +140,14 @@ func noRedirectClient() *http.Client {
 			return http.ErrUseLastResponse
 		},
 	}
+}
+
+func httpGet(client *http.Client, url string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	return client.Do(req)
 }
 
 // setupAndToken runs the CTFd first-boot wizard and returns a fresh admin token.
@@ -234,6 +242,8 @@ func writeSecret(ns, name, key, value string) error {
 }
 
 // verify asserts that the resources declared by the example manifests exist.
+//
+//nolint:gocyclo // a flat sequence of independent assertions; splitting hurts readability
 func verify(url, token string) error {
 	client := ctfd.NewClient(url, "", "", token)
 
