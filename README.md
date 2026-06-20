@@ -68,7 +68,7 @@ required (3.7.x and earlier reject it with a 500). The e2e suite runs against
 
 ## Deploying CTFd (Helm chart)
 
-This repo ships a Helm chart, [`charts/ctfd`](charts/ctfd), to run the CTFd
+This repo ships a Helm chart, [`dploy-chart/ctfd`](dploy-chart/ctfd), to run the CTFd
 instance the provider manages. Its headline feature is installing **CTFd plugins
 from OCI images** via Kubernetes Image Volumes — no custom CTFd image rebuild.
 The OIDC IdP plugin is turnkey (plugin + vendored deps + provisioned apps from
@@ -86,11 +86,16 @@ oidc:
 
 …or mount any plugin generically with `plugins[]` / `extraVolumes`.
 
+The chart deploys a **single CTFd instance** (CTFd is single-tenant — not for
+multi-instance). With the OIDC IdP plugin, CTFd becomes an OAuth2/OIDC provider,
+a good way to **link it with Dploy** (register Dploy as an OIDC app so players
+get "Log in with CTFd" SSO).
+
 With `bootstrap.enabled` / `providerConfig.enabled` it also runs the CTFd setup
 wizard and wires the provider credentials, so `helm install` yields an instance
 provider-ctfd can manage with no manual step. See
-[`charts/ctfd/README.md`](charts/ctfd/README.md) and
-[`charts/ctfd/examples/oidc-values.yaml`](charts/ctfd/examples/oidc-values.yaml). Release it with
+[`dploy-chart/ctfd/README.md`](dploy-chart/ctfd/README.md) and
+[`dploy-chart/ctfd/examples/oidc-values.yaml`](dploy-chart/ctfd/examples/oidc-values.yaml). Release it with
 `make helm.package` / `make helm.push` (or the `chart-release` workflow on a
 `chart-v*` tag).
 

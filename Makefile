@@ -175,10 +175,10 @@ test.e2e:
 .PHONY: test.e2e
 
 # ====================================================================================
-# Helm chart (charts/ctfd)
+# Helm chart (dploy-chart/ctfd)
 
 HELM_OCI_REPO ?= oci://ghcr.io/aydev-fr/charts
-CHART_DIR := charts/ctfd
+CHART_DIR := dploy-chart/ctfd
 CHART_OUT := _output/charts
 
 helm.lint:

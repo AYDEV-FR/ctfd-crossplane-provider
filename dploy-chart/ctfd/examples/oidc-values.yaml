@@ -2,7 +2,7 @@
 # plugin from its OCI image, wires its vendored deps and provisions the OAuth
 # applications below — no manual plugin/volume/env wiring, no custom CTFd image.
 #
-#   helm install ctfd ./charts/ctfd -n ctfd --create-namespace -f charts/ctfd/examples/oidc-values.yaml
+#   helm install ctfd ./dploy-chart/ctfd -n ctfd --create-namespace -f dploy-chart/ctfd/examples/oidc-values.yaml
 
 image:
   repository: ctfd/ctfd

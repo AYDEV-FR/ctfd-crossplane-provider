@@ -6,12 +6,22 @@ headline feature: **install CTFd plugins from OCI images** using Kubernetes
 [Image Volumes](https://kubernetes.io/docs/concepts/storage/volumes/#image) — no
 rebuilding the CTFd image.
 
+> **Scope:** this chart deploys a **single CTFd instance** — it is *not* meant to
+> run multiple CTFd instances. CTFd is single-tenant (one scoreboard, one theme,
+> one config), so run one release per CTF.
+>
+> **Use it as an identity provider for Dploy.** With the bundled OIDC IdP plugin
+> ([`CTFd-OIDC-Provider`](https://github.com/aydev-fr)), CTFd becomes an
+> OAuth2/OIDC provider — a clean way to **link CTFd and [Dploy](https://github.com/aydev-fr)**:
+> register Dploy as an OIDC application (see `oidc.apps` below) and your players
+> get "Log in with CTFd" SSO into Dploy. One CTFd, one Dploy, linked by OIDC.
+
 ## Install
 
 ```shell
-helm install ctfd ./charts/ctfd -n ctfd --create-namespace
+helm install ctfd ./dploy-chart/ctfd -n ctfd --create-namespace
 # with the OIDC plugin + provider wiring:
-helm install ctfd ./charts/ctfd -n ctfd --create-namespace \
+helm install ctfd ./dploy-chart/ctfd -n ctfd --create-namespace \
   -f examples/oidc-values.yaml
 ```
 

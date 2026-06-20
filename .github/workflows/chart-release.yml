@@ -1,6 +1,6 @@
 name: Release CTFd Helm chart
 
-# Publishes charts/ctfd to GHCR as an OCI artifact when a chart tag is pushed
+# Publishes dploy-chart/ctfd to GHCR as an OCI artifact when a chart tag is pushed
 # (e.g. chart-v0.1.0) or manually.
 on:
   push:
@@ -25,5 +25,5 @@ jobs:
 
       - name: Package and push chart
         run: |
-          helm package charts/ctfd -d _output/charts
+          helm package dploy-chart/ctfd -d _output/charts
           helm push _output/charts/ctfd-*.tgz oci://ghcr.io/${{ github.repository_owner }}/charts
