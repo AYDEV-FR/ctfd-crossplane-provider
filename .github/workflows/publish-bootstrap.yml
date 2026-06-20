@@ -1,0 +1,62 @@
+name: Publish bootstrap image
+
+# Builds the ctfd-bootstrap image (the ctfdctl helper that runs the CTFd setup
+# wizard and writes the provider credentials Secret) and pushes it multi-arch to
+# ghcr.io/<owner>/ctfd-bootstrap. Referenced by the chart's bootstrap Job
+# (AYDEV-FR/dploy-charts). Triggered by a v* tag or manually.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image tag, e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Resolve version and image
+        id: ver
+        run: |
+          V="${{ github.event.inputs.version }}"
+          [ -z "$V" ] && V="${GITHUB_REF_NAME}"
+          echo "version=${V}" >> "$GITHUB_OUTPUT"
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE=ghcr.io/${OWNER}/ctfd-bootstrap" >> "$GITHUB_ENV"
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Cross-compile ctfdctl (amd64 + arm64)
+        run: |
+          mkdir -p _output
+          for arch in amd64 arm64; do
+            mkdir -p "_output/bin/linux_${arch}"
+            CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" \
+              go build -o "_output/bin/linux_${arch}/ctfdctl" ./test/e2e/ctfdctl
+          done
+
+      - name: Build and push multi-arch image
+        run: |
+          docker buildx build --platform linux/amd64,linux/arm64 --push \
+            -f cluster/images/ctfd-bootstrap/Dockerfile \
+            -t "${IMAGE}:${{ steps.ver.outputs.version }}" \
+            -t "${IMAGE}:latest" \
+            _output
+          echo "Published ${IMAGE}:${{ steps.ver.outputs.version }} and :latest"
