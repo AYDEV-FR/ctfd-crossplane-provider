@@ -194,3 +194,26 @@ helm.push: helm.package
 	@helm push $(CHART_OUT)/ctfd-*.tgz $(HELM_OCI_REPO)
 
 .PHONY: helm.lint helm.package helm.push
+
+# ====================================================================================
+# Provider package (xpkg) — publish to a registry (default: GHCR)
+
+PROVIDER_IMAGE ?= ghcr.io/aydev-fr/provider-ctfd
+VERSION        ?= v0.0.0-dev
+HOST_ARCH      := $(shell go env GOARCH)
+
+# xpkg.build builds the controller image and the provider package for the host
+# architecture into _output/. Requires the `crossplane` CLI.
+xpkg.build:
+	@mkdir -p _output/bin/linux_$(HOST_ARCH)
+	@CGO_ENABLED=0 GOOS=linux GOARCH=$(HOST_ARCH) go build -o _output/bin/linux_$(HOST_ARCH)/provider ./cmd/provider
+	@cp cluster/images/provider-ctfd/Dockerfile _output/Dockerfile
+	@docker buildx build --platform linux/$(HOST_ARCH) --load -f _output/Dockerfile -t provider-ctfd-runtime:$(HOST_ARCH) _output
+	@crossplane xpkg build --package-root=package --embed-runtime-image=provider-ctfd-runtime:$(HOST_ARCH) --package-file=_output/provider-ctfd.xpkg
+	@echo "built _output/provider-ctfd.xpkg"
+
+# xpkg.push pushes the built package (login first: docker login ghcr.io).
+xpkg.push: xpkg.build
+	@crossplane xpkg push --package-files=_output/provider-ctfd.xpkg $(PROVIDER_IMAGE):$(VERSION)
+
+.PHONY: xpkg.build xpkg.push

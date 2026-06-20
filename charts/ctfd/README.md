@@ -12,7 +12,7 @@ rebuilding the CTFd image.
 helm install ctfd ./charts/ctfd -n ctfd --create-namespace
 # with the OIDC plugin + provider wiring:
 helm install ctfd ./charts/ctfd -n ctfd --create-namespace \
-  -f examples/helm/ctfd-oidc.yaml
+  -f examples/oidc-values.yaml
 ```
 
 ## Plugins as OCI Image Volumes
@@ -62,7 +62,7 @@ oidc:
 ```
 
 No `plugins`/`extraVolumes`/`env` wiring needed. Apps are provisioned at startup
-(`OIDC_PROVIDER_APPS_FILE`). See [`examples/helm/ctfd-oidc.yaml`](../../examples/helm/ctfd-oidc.yaml).
+(`OIDC_PROVIDER_APPS_FILE`). See [`examples/oidc-values.yaml`](examples/oidc-values.yaml).
 
 ## Provider integration (optional, full-auto)
 

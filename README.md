@@ -9,6 +9,55 @@ API client.
 
 Maintained by the [barbhack](https://github.com/barbhack) org.
 
+## Install
+
+The provider is published as a Crossplane **package** (xpkg, an OCI image) to
+GHCR. Install it into a cluster that runs Crossplane:
+
+```yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-ctfd
+spec:
+  package: ghcr.io/aydev-fr/provider-ctfd:v0.1.0
+```
+
+```shell
+kubectl apply -f - <<'EOF'
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata: {name: provider-ctfd}
+spec: {package: ghcr.io/aydev-fr/provider-ctfd:v0.1.0}
+EOF
+kubectl get provider.pkg provider-ctfd -w   # wait for INSTALLED & HEALTHY
+```
+
+> The GHCR package must be **public** (Packages → provider-ctfd → Package
+> settings → Change visibility) for Crossplane to pull it without credentials;
+> otherwise configure a `packagePullSecrets`.
+
+### Publishing
+
+Pushing a `v*` tag runs the [`Publish provider`](.github/workflows/publish-provider.yml)
+workflow, which builds the multi-arch xpkg and pushes it to
+`ghcr.io/<owner>/provider-ctfd:<tag>`:
+
+```shell
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+Locally (needs the [`crossplane` CLI](https://docs.crossplane.io/latest/cli/)
+and `docker login ghcr.io`):
+
+```shell
+make xpkg.build                                  # _output/provider-ctfd.xpkg
+make xpkg.push VERSION=v0.1.0                     # push to GHCR
+```
+
+The same xpkg can later be submitted to the
+[Upbound Marketplace](https://marketplace.upbound.io/).
+
 ## Compatibility
 
 Works with the **latest CTFd** (verified end-to-end against `ctfd/ctfd:latest`,
@@ -41,7 +90,7 @@ With `bootstrap.enabled` / `providerConfig.enabled` it also runs the CTFd setup
 wizard and wires the provider credentials, so `helm install` yields an instance
 provider-ctfd can manage with no manual step. See
 [`charts/ctfd/README.md`](charts/ctfd/README.md) and
-[`examples/helm/ctfd-oidc.yaml`](examples/helm/ctfd-oidc.yaml). Release it with
+[`charts/ctfd/examples/oidc-values.yaml`](charts/ctfd/examples/oidc-values.yaml). Release it with
 `make helm.package` / `make helm.push` (or the `chart-release` workflow on a
 `chart-v*` tag).
 

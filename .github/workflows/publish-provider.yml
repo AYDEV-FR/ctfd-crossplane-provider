@@ -1,0 +1,71 @@
+name: Publish provider
+
+# Builds the Crossplane provider package (xpkg, multi-arch) and pushes it to
+# GHCR as ghcr.io/<owner>/provider-ctfd:<version>. Triggered by a v* tag or
+# manually. The same artifact can later be submitted to the Upbound Marketplace.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package tag, e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/provider-ctfd
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Install Crossplane CLI
+        run: |
+          curl -sL https://raw.githubusercontent.com/crossplane/crossplane/main/install.sh | sh
+          sudo mv crossplane /usr/local/bin/crossplane
+
+      - name: Resolve version
+        id: ver
+        run: |
+          V="${{ github.event.inputs.version }}"
+          [ -z "$V" ] && V="${GITHUB_REF_NAME}"
+          echo "version=${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build runtime images and xpkgs (amd64 + arm64)
+        run: |
+          mkdir -p _output
+          cp cluster/images/provider-ctfd/Dockerfile _output/Dockerfile
+          for arch in amd64 arm64; do
+            mkdir -p "_output/bin/linux_${arch}"
+            CGO_ENABLED=0 GOOS=linux GOARCH="${arch}" \
+              go build -o "_output/bin/linux_${arch}/provider" ./cmd/provider
+            docker buildx build --platform "linux/${arch}" --load \
+              -f _output/Dockerfile -t "provider-ctfd-runtime:${arch}" _output
+            crossplane xpkg build --package-root=package \
+              --embed-runtime-image="provider-ctfd-runtime:${arch}" \
+              --package-file="_output/provider-${arch}.xpkg"
+          done
+
+      - name: Push multi-arch package
+        run: |
+          crossplane xpkg push \
+            --package-files=_output/provider-amd64.xpkg,_output/provider-arm64.xpkg \
+            "${IMAGE}:${{ steps.ver.outputs.version }}"
+          echo "Published ${IMAGE}:${{ steps.ver.outputs.version }}"
