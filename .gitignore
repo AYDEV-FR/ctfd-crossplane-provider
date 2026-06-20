@@ -1,0 +1,15 @@
+/.cache
+/.work
+/_output
+cover.out
+/vendor
+/.vendor-new
+.vscode
+.idea
+.DS_Store
+
+# Local Claude Code config
+/.claude/
+
+# Stray go build binary
+/ctfdctl

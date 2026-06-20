@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ctfd
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ctfd
+  namespace: ctfd
+  labels:
+    app: ctfd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ctfd
+  template:
+    metadata:
+      labels:
+        app: ctfd
+    spec:
+      containers:
+        - name: ctfd
+          # Overridable via CTFD_IMAGE in run.sh.
+          image: ctfd/ctfd:latest
+          imagePullPolicy: IfNotPresent
+          command: ["/opt/CTFd/docker-entrypoint.sh"]
+          env:
+            - name: WORKERS
+              value: "1"
+            - name: SECRET_KEY
+              value: e2e-not-a-secret
+            - name: REVERSE_PROXY
+              value: "true"
+            # Use the bundled SQLite + filesystem cache so no external DB/redis
+            # is required for the test.
+            - name: LOG_FOLDER
+              value: /var/log/CTFd
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /setup
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /healthcheck
+              port: 8000
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ctfd
+  namespace: ctfd
+spec:
+  selector:
+    app: ctfd
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000

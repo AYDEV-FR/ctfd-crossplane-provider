@@ -1,0 +1,37 @@
+# Example: deploy CTFd with the OIDC IdP plugin, turnkey. The chart installs the
+# plugin from its OCI image, wires its vendored deps and provisions the OAuth
+# applications below — no manual plugin/volume/env wiring, no custom CTFd image.
+#
+#   helm install ctfd ./charts/ctfd -n ctfd --create-namespace -f examples/helm/ctfd-oidc.yaml
+
+image:
+  repository: ctfd/ctfd
+  tag: "3.8.6"
+
+persistence:
+  enabled: true
+  size: 2Gi
+
+oidc:
+  enabled: true
+  image: ghcr.io/aydev-fr/ctfd-oidc-provider:1.0.1
+  apps:
+    - name: Example App
+      client_id: example-app
+      type: confidential
+      client_secret: change-me              # required for confidential apps
+      redirect_uris:
+        - https://app.example.com/oauth/callback
+      scopes: [openid, profile, email]
+      grant_types: [authorization_code]
+    # A public (PKCE) app needs no secret:
+    # - name: SPA
+    #   client_id: spa
+    #   type: public
+    #   redirect_uris: [https://spa.example.com/callback]
+
+# Optional: auto-bootstrap CTFd + wire the Crossplane provider.
+bootstrap:
+  enabled: false
+providerConfig:
+  enabled: false

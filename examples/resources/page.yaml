@@ -1,0 +1,22 @@
+apiVersion: resources.ctfd.crossplane.io/v1alpha1
+kind: Page
+metadata:
+  name: rules
+  namespace: default
+spec:
+  forProvider:
+    title: Rules
+    route: rules
+    format: markdown
+    content: |
+      # Rules
+
+      1. Be nice.
+      2. No attacking the infrastructure.
+      3. Flag format is `CTF{...}`.
+    draft: false
+    hidden: false
+    authRequired: false
+  providerConfigRef:
+    name: example
+    kind: ClusterProviderConfig

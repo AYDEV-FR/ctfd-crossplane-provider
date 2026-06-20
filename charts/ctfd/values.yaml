@@ -1,0 +1,125 @@
+# Default values for the ctfd chart.
+
+replicaCount: 1
+
+image:
+  repository: ctfd/ctfd
+  # Defaults to the chart appVersion (a CTFd >= 3.8 is required by provider-ctfd).
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# Number of gunicorn workers (CTFd WORKERS env).
+workers: 1
+
+# CTFd SECRET_KEY. Leave empty to let CTFd generate one (not stable across
+# restarts — set it, or enable persistence, for anything long-lived).
+secretKey: ""
+
+# Extra environment variables passed to the CTFd container, e.g. DATABASE_URL,
+# REDIS_URL, or plugin configuration (OAUTH_CLIENT_ID, ...).
+env: []
+# - name: DATABASE_URL
+#   value: mysql+pymysql://ctfd:ctfd@mysql/ctfd
+
+service:
+  type: ClusterIP
+  port: 8000
+
+# Persist CTFd's data dir (SQLite DB + uploads). Recommended for anything that
+# must survive a pod restart.
+persistence:
+  enabled: false
+  mountPath: /opt/CTFd/.data
+  size: 1Gi
+  storageClass: ""
+  accessModes:
+    - ReadWriteOnce
+
+# ---------------------------------------------------------------------------
+# Plugins installed from OCI images, mounted read-only into CTFd's plugins
+# directory via Kubernetes Image Volumes (requires the ImageVolume feature,
+# enabled by default since Kubernetes 1.33). Each plugin image's filesystem is
+# mounted at /opt/CTFd/CTFd/plugins/<name>, so the image must contain the plugin
+# package (an __init__.py exposing load(app)) at its root — or point `subPath`
+# at the sub-directory that does.
+plugins: []
+# - name: oidc                                   # -> /opt/CTFd/CTFd/plugins/oidc
+#   image: ghcr.io/aydev-fr/ctfd-oidc-plugin:1.0.0
+#   pullPolicy: IfNotPresent
+#   subPath: ""                                  # optional sub-dir inside the image
+
+# ---------------------------------------------------------------------------
+# OIDC IdP plugin (ghcr.io/aydev-fr/ctfd-oidc-provider) — turnkey. Set
+# `enabled: true` and the chart installs the plugin from its OCI image, wires
+# its vendored dependencies (PYTHONPATH) and provisions the OAuth applications
+# listed in `apps` from a generated ConfigMap. No plugins/extraVolumes wiring
+# needed.
+oidc:
+  enabled: false
+  image: ghcr.io/aydev-fr/ctfd-oidc-provider:1.0.1
+  pullPolicy: IfNotPresent
+  # OAuth/OIDC applications to provision declaratively.
+  apps: []
+  # - name: Example App
+  #   client_id: example-app
+  #   type: confidential          # or "public" (PKCE)
+  #   redirect_uris:
+  #     - https://app.example.com/oauth/callback
+  #   scopes: [openid, profile, email]
+  #   grant_types: [authorization_code]
+
+# ---------------------------------------------------------------------------
+# Optional: run the CTFd setup wizard and publish provider credentials so
+# provider-ctfd can manage this instance with no manual step. Requires the
+# ctfd-bootstrap image (built from this repo: cluster/images/ctfd-bootstrap).
+bootstrap:
+  enabled: false
+  image: ghcr.io/aydev-fr/ctfd-bootstrap:latest
+  pullPolicy: IfNotPresent
+  admin:
+    name: admin
+    email: admin@example.com
+    password: password
+  # Where to write the credentials Secret consumed by the (Cluster)ProviderConfig.
+  secret:
+    namespace: ""   # defaults to the release namespace
+    name: ctfd-creds
+    key: credentials
+
+# Optional: create the Crossplane (Cluster)ProviderConfig pointing at the
+# bootstrap secret. Requires bootstrap.enabled (or a pre-existing secret).
+providerConfig:
+  enabled: false
+  # "ClusterProviderConfig" (cluster-scoped) or "ProviderConfig" (namespaced).
+  kind: ClusterProviderConfig
+  name: ctfd
+
+# Standard extra volumes / mounts on the CTFd container. Use these to mount a
+# plugin's configuration file (from a ConfigMap/Secret), vendored plugin
+# dependencies (from another image volume, added to PYTHONPATH), or anything
+# else. Plain Kubernetes volume / volumeMount syntax.
+extraVolumes: []
+# - name: oidc-apps
+#   configMap:
+#     name: ctfd-oidc-apps        # contains apps.yaml
+# - name: oidc-deps
+#   image:
+#     reference: ghcr.io/aydev-fr/ctfd-oidc-provider:1.0.1
+#     pullPolicy: IfNotPresent
+extraVolumeMounts: []
+# - name: oidc-apps
+#   mountPath: /etc/ctfd-oidc/apps.yaml
+#   subPath: apps.yaml
+#   readOnly: true
+# - name: oidc-deps
+#   mountPath: /opt/ctfd-plugin-deps   # then set env PYTHONPATH=/opt/ctfd-plugin-deps
+#   subPath: plugin/deps
+#   readOnly: true
+
+podAnnotations: {}
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+nameOverride: ""
+fullnameOverride: ""

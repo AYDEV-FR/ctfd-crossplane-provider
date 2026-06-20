@@ -1,0 +1,22 @@
+CTFd has been deployed as {{ include "ctfd.fullname" . }} in namespace {{ .Release.Namespace }}.
+
+Reach it:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "ctfd.fullname" . }} 8000:{{ .Values.service.port }}
+  open http://localhost:8000
+
+{{- if .Values.plugins }}
+
+Plugins mounted from OCI images (Image Volumes), read-only under /opt/CTFd/CTFd/plugins:
+{{- range .Values.plugins }}
+  - {{ .name }}  <-  {{ .image }}
+{{- end }}
+{{- end }}
+{{- if .Values.bootstrap.enabled }}
+
+The CTFd setup wizard runs automatically (admin: {{ .Values.bootstrap.admin.name }}). Provider
+credentials are written to Secret {{ include "ctfd.bootstrap.secretNamespace" . }}/{{ .Values.bootstrap.secret.name }}.
+{{- end }}
+{{- if .Values.providerConfig.enabled }}
+A {{ .Values.providerConfig.kind }} "{{ .Values.providerConfig.name }}" was created; provider-ctfd
+can manage this instance with no further steps.
+{{- end }}

@@ -1,0 +1,55 @@
+# Provider RBAC + Deployment for e2e. The provider runs as a plain controller
+# Deployment built from the local image; for production you would install it as
+# a Crossplane package (a Provider object referencing an xpkg image).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: provider-ctfd-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: provider-ctfd
+  namespace: provider-ctfd-system
+---
+# The provider manages cluster-scoped and namespaced resources, secrets, events
+# and CRDs. cluster-admin keeps the e2e setup simple; a real install ships a
+# tightly-scoped ClusterRole.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: provider-ctfd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: provider-ctfd
+    namespace: provider-ctfd-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: provider-ctfd
+  namespace: provider-ctfd-system
+  labels:
+    app: provider-ctfd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: provider-ctfd
+  template:
+    metadata:
+      labels:
+        app: provider-ctfd
+    spec:
+      serviceAccountName: provider-ctfd
+      containers:
+        - name: provider
+          # Replaced by run.sh with the locally-built, kind-loaded image.
+          image: PROVIDER_IMAGE
+          imagePullPolicy: IfNotPresent
+          args:
+            - --debug

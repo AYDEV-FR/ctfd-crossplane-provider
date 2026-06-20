@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: default
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  namespace: default
+  name: example-provider-secret
+type: Opaque
+# The credentials value is a base64-encoded JSON document describing how to
+# reach the CTFd instance. An admin "api_key" is recommended; a "session" and
+# "nonce" pair is supported as a fallback. The decoded value below is:
+#   {"url":"https://ctf.example.com","api_key":"ctfd_0123456789abcdef0123456789abcdef"}
+data:
+  credentials: eyJ1cmwiOiJodHRwczovL2N0Zi5leGFtcGxlLmNvbSIsImFwaV9rZXkiOiJjdGZkXzAxMjM0NTY3ODlhYmNkZWYwMTIzNDU2Nzg5YWJjZGVmIn0=
+---
+apiVersion: ctfd.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: example
+  namespace: default
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: default
+      name: example-provider-secret
+      key: credentials
+---
+apiVersion: ctfd.crossplane.io/v1alpha1
+kind: ClusterProviderConfig
+metadata:
+  name: example
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: default
+      name: example-provider-secret
+      key: credentials

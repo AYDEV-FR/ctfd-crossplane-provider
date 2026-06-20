@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "ctfd.fullname" . }}
+  labels:
+    {{- include "ctfd.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "ctfd.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "ctfd.selectorLabels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: ctfd
+          image: {{ include "ctfd.image" . | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: WORKERS
+              value: {{ .Values.workers | quote }}
+            {{- with .Values.secretKey }}
+            - name: SECRET_KEY
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if .Values.oidc.enabled }}
+            - name: PYTHONPATH
+              value: /opt/ctfd-plugin-deps
+            {{- if .Values.oidc.apps }}
+            - name: OIDC_PROVIDER_APPS_FILE
+              value: /etc/ctfd-oidc/apps.yaml
+            {{- end }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: /setup
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 60
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if or .Values.persistence.enabled .Values.plugins .Values.extraVolumeMounts .Values.oidc.enabled }}
+          volumeMounts:
+            {{- if .Values.persistence.enabled }}
+            - name: data
+              mountPath: {{ .Values.persistence.mountPath }}
+            {{- end }}
+            {{- range .Values.plugins }}
+            - name: plugin-{{ .name | replace "_" "-" }}
+              mountPath: {{ printf "/opt/CTFd/CTFd/plugins/%s" .name }}
+              {{- with .subPath }}
+              subPath: {{ . }}
+              {{- end }}
+              readOnly: true
+            {{- end }}
+            {{- if .Values.oidc.enabled }}
+            - name: oidc-plugin
+              mountPath: /opt/CTFd/CTFd/plugins/oidc_provider
+              subPath: plugin/oidc_provider
+              readOnly: true
+            - name: oidc-deps
+              mountPath: /opt/ctfd-plugin-deps
+              subPath: plugin/deps
+              readOnly: true
+            {{- if .Values.oidc.apps }}
+            - name: oidc-apps
+              mountPath: /etc/ctfd-oidc/apps.yaml
+              subPath: apps.yaml
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+      {{- if or .Values.persistence.enabled .Values.plugins .Values.extraVolumes .Values.oidc.enabled }}
+      volumes:
+        {{- if .Values.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "ctfd.fullname" . }}-data
+        {{- end }}
+        {{- range .Values.plugins }}
+        # CTFd plugin mounted from an OCI image (Kubernetes Image Volume).
+        - name: plugin-{{ .name | replace "_" "-" }}
+          image:
+            reference: {{ required "plugins[].image is required" .image | quote }}
+            pullPolicy: {{ .pullPolicy | default "IfNotPresent" }}
+        {{- end }}
+        {{- if .Values.oidc.enabled }}
+        # OIDC IdP plugin + its vendored deps, both from the plugin's OCI image.
+        - name: oidc-plugin
+          image:
+            reference: {{ .Values.oidc.image | quote }}
+            pullPolicy: {{ .Values.oidc.pullPolicy }}
+        - name: oidc-deps
+          image:
+            reference: {{ .Values.oidc.image | quote }}
+            pullPolicy: {{ .Values.oidc.pullPolicy }}
+        {{- if .Values.oidc.apps }}
+        - name: oidc-apps
+          configMap:
+            name: {{ include "ctfd.fullname" . }}-oidc-apps
+        {{- end }}
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

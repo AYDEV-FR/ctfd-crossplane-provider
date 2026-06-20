@@ -1,0 +1,80 @@
+{{- if .Values.bootstrap.enabled }}
+{{- $secretNS := include "ctfd.bootstrap.secretNamespace" . }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "ctfd.fullname" . }}-bootstrap
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ctfd.labels" . | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "ctfd.fullname" . }}-bootstrap
+  namespace: {{ $secretNS }}
+  labels:
+    {{- include "ctfd.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "ctfd.fullname" . }}-bootstrap
+  namespace: {{ $secretNS }}
+  labels:
+    {{- include "ctfd.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "ctfd.fullname" . }}-bootstrap
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "ctfd.fullname" . }}-bootstrap
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ctfd.fullname" . }}-bootstrap
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "ctfd.labels" . | nindent 4 }}
+  annotations:
+    # Re-run on every install/upgrade; replace the previous (immutable) Job.
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        {{- include "ctfd.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "ctfd.fullname" . }}-bootstrap
+      restartPolicy: OnFailure
+      containers:
+        - name: bootstrap
+          image: {{ .Values.bootstrap.image | quote }}
+          imagePullPolicy: {{ .Values.bootstrap.pullPolicy }}
+          args:
+            - --mode=bootstrap
+          env:
+            - name: CTFD_URL
+              value: http://{{ include "ctfd.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+            - name: SECRET_NAMESPACE
+              value: {{ $secretNS }}
+            - name: SECRET_NAME
+              value: {{ .Values.bootstrap.secret.name }}
+            - name: SECRET_KEY
+              value: {{ .Values.bootstrap.secret.key }}
+            - name: CTFD_ADMIN
+              value: {{ .Values.bootstrap.admin.name | quote }}
+            - name: CTFD_EMAIL
+              value: {{ .Values.bootstrap.admin.email | quote }}
+            - name: CTFD_PASSWORD
+              value: {{ .Values.bootstrap.admin.password | quote }}
+{{- end }}

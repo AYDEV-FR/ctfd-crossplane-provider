@@ -1,0 +1,14 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: provider-ctfd
+  annotations:
+    meta.crossplane.io/maintainer: barbhack <https://github.com/barbhack>
+    meta.crossplane.io/source: github.com/AYDEV-FR/ctfd-crossplane-provider
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      A Crossplane provider for managing CTFd resources (challenges, flags,
+      hints) declaratively, backed by github.com/ctfer-io/go-ctfd.
+spec:
+  capabilities:
+    - safe-start

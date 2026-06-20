@@ -1,0 +1,71 @@
+# Fully automated CTFd bootstrap: a Job runs the CTFd /setup wizard (or logs in
+# if already configured), mints an admin API token and writes it into the
+# credentials Secret the ProviderConfig references. No manual step required.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ctfd-bootstrap
+  namespace: ctfd
+---
+# The Job only needs to create/update the credentials Secret in the namespace
+# where the (Cluster)ProviderConfig credentials live (here: default).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ctfd-bootstrap-secret-writer
+  namespace: default
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ctfd-bootstrap-secret-writer
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ctfd-bootstrap-secret-writer
+subjects:
+  - kind: ServiceAccount
+    name: ctfd-bootstrap
+    namespace: ctfd
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ctfd-bootstrap
+  namespace: ctfd
+spec:
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        app: ctfd-bootstrap
+    spec:
+      serviceAccountName: ctfd-bootstrap
+      restartPolicy: OnFailure
+      containers:
+        - name: bootstrap
+          # Replaced by run.sh with the locally-built, kind-loaded image.
+          image: BOOTSTRAP_IMAGE
+          imagePullPolicy: IfNotPresent
+          args:
+            - --mode=bootstrap
+          env:
+            - name: CTFD_URL
+              value: http://ctfd.ctfd.svc.cluster.local:8000
+            - name: SECRET_NAMESPACE
+              value: default
+            - name: SECRET_NAME
+              value: ctfd-creds
+            - name: SECRET_KEY
+              value: credentials
+            - name: CTFD_ADMIN
+              value: admin
+            - name: CTFD_EMAIL
+              value: admin@example.com
+            - name: CTFD_PASSWORD
+              value: password

@@ -1,0 +1,11 @@
+{{- if and .Values.oidc.enabled .Values.oidc.apps }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ctfd.fullname" . }}-oidc-apps
+  labels:
+    {{- include "ctfd.labels" . | nindent 4 }}
+data:
+  apps.yaml: |
+    {{- dict "applications" .Values.oidc.apps | toYaml | nindent 4 }}
+{{- end }}

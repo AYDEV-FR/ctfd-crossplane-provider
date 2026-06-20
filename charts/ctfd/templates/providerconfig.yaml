@@ -1,0 +1,19 @@
+{{- if .Values.providerConfig.enabled }}
+{{- $secretNS := include "ctfd.bootstrap.secretNamespace" . }}
+apiVersion: ctfd.crossplane.io/v1alpha1
+kind: {{ .Values.providerConfig.kind }}
+metadata:
+  name: {{ .Values.providerConfig.name }}
+  {{- if eq .Values.providerConfig.kind "ProviderConfig" }}
+  namespace: {{ $secretNS }}
+  {{- end }}
+  labels:
+    {{- include "ctfd.labels" . | nindent 4 }}
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: {{ $secretNS }}
+      name: {{ .Values.bootstrap.secret.name }}
+      key: {{ .Values.bootstrap.secret.key }}
+{{- end }}

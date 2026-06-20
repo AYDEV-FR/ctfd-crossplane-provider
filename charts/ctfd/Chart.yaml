@@ -1,0 +1,20 @@
+apiVersion: v2
+name: ctfd
+description: |
+  CTFd for use with the Crossplane provider-ctfd. Its headline feature is
+  installing CTFd plugins from OCI images using Kubernetes Image Volumes — no
+  custom CTFd image rebuild required. Optionally bootstraps CTFd and wires the
+  provider's credentials.
+type: application
+version: 0.1.0
+appVersion: "3.8.6"
+home: https://github.com/AYDEV-FR/ctfd-crossplane-provider
+sources:
+  - https://github.com/AYDEV-FR/ctfd-crossplane-provider
+keywords:
+  - ctfd
+  - ctf
+  - crossplane
+maintainers:
+  - name: barbhack
+    url: https://github.com/barbhack

@@ -1,0 +1,27 @@
+# Static ProviderConfig + ClusterProviderConfig. The referenced Secret
+# (default/ctfd-creds) is created by the ctfd-bootstrap Job; the provider starts
+# reconciling as soon as it exists. No manual credential wiring needed.
+apiVersion: ctfd.crossplane.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: example
+  namespace: default
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: default
+      name: ctfd-creds
+      key: credentials
+---
+apiVersion: ctfd.crossplane.io/v1alpha1
+kind: ClusterProviderConfig
+metadata:
+  name: example
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: default
+      name: ctfd-creds
+      key: credentials

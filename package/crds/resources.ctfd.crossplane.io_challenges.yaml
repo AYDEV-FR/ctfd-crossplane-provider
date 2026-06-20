@@ -1,0 +1,369 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: challenges.resources.ctfd.crossplane.io
+spec:
+  group: resources.ctfd.crossplane.io
+  names:
+    categories:
+    - crossplane
+    - managed
+    - ctfd
+    kind: Challenge
+    listKind: ChallengeList
+    plural: challenges
+    singular: challenge
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: READY
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Synced')].status
+      name: SYNCED
+      type: string
+    - jsonPath: .spec.forProvider.category
+      name: CATEGORY
+      type: string
+    - jsonPath: .metadata.annotations.crossplane\.io/external-name
+      name: EXTERNAL-NAME
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: A Challenge is a CTFd challenge.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: A ChallengeSpec defines the desired state of a Challenge.
+            properties:
+              forProvider:
+                description: ChallengeParameters are the configurable fields of a
+                  Challenge.
+                properties:
+                  attribution:
+                    description: Attribution credits the author of the challenge.
+                    type: string
+                  category:
+                    description: Category the challenge belongs to.
+                    type: string
+                  connectionInfo:
+                    description: |-
+                      ConnectionInfo gives players the information required to reach the
+                      challenge infrastructure (e.g. an SSH command or a URL).
+                    type: string
+                  decay:
+                    description: |-
+                      Decay controls how quickly a dynamic challenge loses value as it is
+                      solved. Its meaning depends on Function.
+                    type: integer
+                  description:
+                    description: Description of the challenge, displayed to players.
+                    type: string
+                  flags:
+                    description: |-
+                      Flags are the flags that solve this challenge. They are managed together
+                      with the challenge: adding, editing or removing an entry creates, replaces
+                      or deletes the corresponding CTFd flag.
+                    items:
+                      description: A ChallengeFlag is a flag that solves the challenge
+                        it is declared on.
+                      properties:
+                        content:
+                          description: |-
+                            Content of the flag. For a "static" flag this is the exact (or
+                            case-insensitive) string players must submit; for a "regex" flag this is
+                            the regular expression their submission must match.
+                          type: string
+                        data:
+                          description: |-
+                            Data carries flag options. Set to "case_insensitive" to make a static
+                            flag case-insensitive; leave empty for the default case-sensitive
+                            behavior.
+                          enum:
+                          - ""
+                          - case_insensitive
+                          type: string
+                        type:
+                          default: static
+                          description: Type of the flag, either "static" or "regex".
+                          enum:
+                          - static
+                          - regex
+                          type: string
+                      required:
+                      - content
+                      type: object
+                    type: array
+                  function:
+                    description: |-
+                      Function is the decay function of a dynamic challenge, either "linear"
+                      or "logarithmic".
+                    enum:
+                    - linear
+                    - logarithmic
+                    type: string
+                  hints:
+                    description: |-
+                      Hints are the hints offered for this challenge. They are managed together
+                      with the challenge: adding, editing or removing an entry creates, replaces
+                      or deletes the corresponding CTFd hint.
+                    items:
+                      description: A ChallengeHint is a hint offered for the challenge
+                        it is declared on.
+                      properties:
+                        content:
+                          description: Content of the hint, revealed to players once
+                            unlocked.
+                          type: string
+                        cost:
+                          default: 0
+                          description: Cost in points to unlock the hint. 0 makes
+                            it free.
+                          type: integer
+                        title:
+                          description: Title of the hint, shown before it is unlocked.
+                          type: string
+                      required:
+                      - content
+                      type: object
+                    type: array
+                  initial:
+                    description: Initial is the starting value of a dynamic challenge.
+                    type: integer
+                  maxAttempts:
+                    description: |-
+                      MaxAttempts is the maximum number of submissions allowed. 0 means
+                      unlimited.
+                    type: integer
+                  minimum:
+                    description: Minimum is the floor value of a dynamic challenge.
+                    type: integer
+                  name:
+                    description: Name of the challenge.
+                    type: string
+                  nextID:
+                    description: |-
+                      NextID is the ID of the challenge proposed to the player after solving
+                      this one.
+                    type: integer
+                  requirements:
+                    description: Requirements the player must meet before the challenge
+                      is unlocked.
+                    properties:
+                      anonymize:
+                        description: |-
+                          Anonymize controls the behavior when the prerequisites are not met:
+                            - "false" (or unset): the resource is hidden until validated.
+                            - "true": the resource is anonymized (visible, but with little info).
+                            - "preview": the resource is visible with preview-only data.
+                        enum:
+                        - true
+                        - false
+                        - preview
+                        type: string
+                      prerequisites:
+                        description: |-
+                          Prerequisites is the list of challenge IDs that must be solved before
+                          this resource is unlocked.
+                        items:
+                          type: integer
+                        type: array
+                    type: object
+                  state:
+                    default: hidden
+                    description: State of the challenge, either "hidden" or "visible".
+                    enum:
+                    - hidden
+                    - visible
+                    type: string
+                  type:
+                    default: standard
+                    description: Type of the challenge. CTFd ships with "standard"
+                      and "dynamic".
+                    type: string
+                  value:
+                    description: |-
+                      Value is the number of points awarded for solving a standard challenge.
+                      Ignored for dynamic challenges, which derive their value from Initial,
+                      Decay and Minimum.
+                    type: integer
+                required:
+                - category
+                - description
+                - name
+                type: object
+              managementPolicies:
+                default:
+                - '*'
+                description: |-
+                  THIS IS A BETA FIELD. It is on by default but can be opted out
+                  through a Crossplane feature flag.
+                  ManagementPolicies specify the array of actions Crossplane is allowed to
+                  take on the managed and external resources.
+                  See the design doc for more information: https://github.com/crossplane/crossplane/blob/499895a25d1a1a0ba1604944ef98ac7a1a71f197/design/design-doc-observe-only-resources.md?plain=1#L223
+                  and this one: https://github.com/crossplane/crossplane/blob/444267e84783136daa93568b364a5f01228cacbe/design/one-pager-ignore-changes.md
+                items:
+                  description: |-
+                    A ManagementAction represents an action that the Crossplane controllers
+                    can take on an external resource.
+                  enum:
+                  - Observe
+                  - Create
+                  - Update
+                  - Delete
+                  - LateInitialize
+                  - '*'
+                  type: string
+                type: array
+              providerConfigRef:
+                default:
+                  kind: ClusterProviderConfig
+                  name: default
+                description: |-
+                  ProviderConfigReference specifies how the provider that will be used to
+                  create, observe, update, and delete this managed resource should be
+                  configured.
+                properties:
+                  kind:
+                    description: Kind of the referenced object.
+                    type: string
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                required:
+                - kind
+                - name
+                type: object
+              writeConnectionSecretToRef:
+                description: |-
+                  WriteConnectionSecretToReference specifies the namespace and name of a
+                  Secret to which any connection details for this managed resource should
+                  be written. Connection details frequently include the endpoint, username,
+                  and password required to connect to the managed resource.
+                properties:
+                  name:
+                    description: Name of the secret.
+                    type: string
+                required:
+                - name
+                type: object
+            required:
+            - forProvider
+            type: object
+          status:
+            description: A ChallengeStatus represents the observed state of a Challenge.
+            properties:
+              atProvider:
+                description: ChallengeObservation are the observable fields of a Challenge.
+                properties:
+                  flags:
+                    description: Flags is the number of flags currently attached to
+                      the challenge.
+                    type: integer
+                  hints:
+                    description: Hints is the number of hints currently attached to
+                      the challenge.
+                    type: integer
+                  id:
+                    description: ID is the CTFd-assigned numeric identifier of the
+                      challenge.
+                    type: integer
+                  solves:
+                    description: Solves is the number of times the challenge has been
+                      solved.
+                    type: integer
+                  state:
+                    description: State of the challenge as reported by CTFd.
+                    type: string
+                  type:
+                    description: Type of the challenge as reported by CTFd.
+                    type: string
+                  value:
+                    description: Value is the current point value of the challenge
+                      as computed by CTFd.
+                    type: integer
+                type: object
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        LastTransitionTime is the last time this condition transitioned from one
+                        status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        A Message containing details about this condition's last transition from
+                        one status to another, if any.
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        ObservedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      type: integer
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: |-
+                        Type of this condition. At most one of each condition type may apply to
+                        a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+                x-kubernetes-list-map-keys:
+                - type
+                x-kubernetes-list-type: map
+              observedGeneration:
+                description: |-
+                  ObservedGeneration is the latest metadata.generation
+                  which resulted in either a ready state, or stalled due to error
+                  it can not recover from without human intervention.
+                format: int64
+                type: integer
+            type: object
+        required:
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

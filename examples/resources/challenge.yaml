@@ -1,0 +1,58 @@
+apiVersion: resources.ctfd.crossplane.io/v1alpha1
+kind: Challenge
+metadata:
+  name: break-the-license
+  namespace: default
+spec:
+  forProvider:
+    name: Break The License 1/2
+    category: crypto
+    description: Reverse the licensing scheme and recover the flag.
+    type: dynamic
+    state: visible
+    function: logarithmic
+    initial: 500
+    decay: 17
+    minimum: 50
+    maxAttempts: 3
+    connectionInfo: ssh user@crypto1.ctfer.io
+    attribution: pandatix
+    # Flags and hints are declared inline and managed together with the
+    # challenge. Editing or removing an entry replaces or deletes the
+    # corresponding CTFd flag/hint.
+    flags:
+      - type: static
+        content: CTF{br0k3n_l1c3ns3}
+      - type: regex
+        content: "^CTF\\{.*\\}$"
+        data: case_insensitive
+    hints:
+      - title: Stuck?
+        content: Look at how the license key is validated.
+        cost: 10
+      - content: The checksum is little-endian.
+        cost: 25
+  providerConfigRef:
+    name: example
+    kind: ProviderConfig
+---
+apiVersion: resources.ctfd.crossplane.io/v1alpha1
+kind: Challenge
+metadata:
+  name: welcome
+  namespace: default
+spec:
+  forProvider:
+    name: Welcome
+    category: misc
+    description: Submit the flag printed on the scoreboard.
+    type: standard
+    state: visible
+    value: 50
+    flags:
+      - content: CTF{w3lc0m3_t0_th3_g4m3}
+  # A ClusterProviderConfig is cluster-scoped and can be shared by resources
+  # across namespaces.
+  providerConfigRef:
+    name: example
+    kind: ClusterProviderConfig
