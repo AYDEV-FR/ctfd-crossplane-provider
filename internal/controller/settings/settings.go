@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package theme
+package settings
 
 import (
 	"context"
@@ -29,6 +29,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/v2/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/v2/pkg/statemetrics"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -43,34 +45,30 @@ const (
 	errTrackPCUsage = "cannot track ProviderConfig usage"
 	errNewClient    = "cannot create new CTFd client"
 	errGet          = "cannot read CTFd configuration"
-	errApply        = "cannot apply theme configuration to CTFd"
+	errApply        = "cannot apply configuration to CTFd"
+	errMailSecret   = "cannot read mail password secret"
 
-	// externalName is the fixed external name of the singleton Theme resource.
-	externalName = "theme"
-
-	keyTheme    = "ctf_theme"
-	keyHeader   = "theme_header"
-	keyFooter   = "theme_footer"
-	keySettings = "theme_settings"
+	// externalName is the fixed external name of the singleton Settings resource.
+	externalName = "settings"
 )
 
-// SetupGated adds a controller that reconciles Theme managed resources with
+// SetupGated adds a controller that reconciles Settings managed resources with
 // safe-start support.
 func SetupGated(mgr ctrl.Manager, o controller.Options) error {
 	o.Gate.Register(func() {
 		if err := Setup(mgr, o); err != nil {
-			panic(errors.Wrap(err, "cannot setup Theme controller"))
+			panic(errors.Wrap(err, "cannot setup Settings controller"))
 		}
-	}, v1alpha1.ThemeGroupVersionKind)
+	}, v1alpha1.SettingsGroupVersionKind)
 	return nil
 }
 
-// Setup adds a controller that reconciles Theme managed resources.
+// Setup adds a controller that reconciles Settings managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.ThemeGroupKind)
+	name := managed.ControllerName(v1alpha1.SettingsGroupKind)
 
 	opts := []managed.ReconcilerOption{
-		managed.WithTypedExternalConnector[*v1alpha1.Theme](&connector{
+		managed.WithTypedExternalConnector[*v1alpha1.Settings](&connector{
 			kube:  mgr.GetClient(),
 			usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
 		}),
@@ -93,20 +91,20 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	if o.MetricOptions != nil && o.MetricOptions.MRStateMetrics != nil {
 		stateMetricsRecorder := statemetrics.NewMRStateRecorder(
-			mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics, &v1alpha1.ThemeList{}, o.MetricOptions.PollStateMetricInterval,
+			mgr.GetClient(), o.Logger, o.MetricOptions.MRStateMetrics, &v1alpha1.SettingsList{}, o.MetricOptions.PollStateMetricInterval,
 		)
 		if err := mgr.Add(stateMetricsRecorder); err != nil {
-			return errors.Wrap(err, "cannot register MR state metrics recorder for kind v1alpha1.ThemeList")
+			return errors.Wrap(err, "cannot register MR state metrics recorder for kind v1alpha1.SettingsList")
 		}
 	}
 
-	r := managed.NewReconciler(mgr, resource.ManagedKind(v1alpha1.ThemeGroupVersionKind), opts...)
+	r := managed.NewReconciler(mgr, resource.ManagedKind(v1alpha1.SettingsGroupVersionKind), opts...)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&v1alpha1.Theme{}).
+		For(&v1alpha1.Settings{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
@@ -115,7 +113,7 @@ type connector struct {
 	usage *resource.ProviderConfigUsageTracker
 }
 
-func (c *connector) Connect(ctx context.Context, cr *v1alpha1.Theme) (managed.TypedExternalClient[*v1alpha1.Theme], error) {
+func (c *connector) Connect(ctx context.Context, cr *v1alpha1.Settings) (managed.TypedExternalClient[*v1alpha1.Settings], error) {
 	if err := c.usage.Track(ctx, cr); err != nil {
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
@@ -125,15 +123,15 @@ func (c *connector) Connect(ctx context.Context, cr *v1alpha1.Theme) (managed.Ty
 		return nil, errors.Wrap(err, errNewClient)
 	}
 
-	return &external{client: cli}, nil
+	return &external{kube: c.kube, client: cli}, nil
 }
 
 type external struct {
+	kube   client.Client
 	client *ctfd.Client
 }
 
-// currentConfig reads the CTFd configuration and returns the theme-related
-// values keyed by their config key.
+// currentConfig reads the CTFd configuration into a key/value map.
 func (e *external) currentConfig(ctx context.Context) (map[string]string, error) {
 	configs, _, err := e.client.GetConfigs(nil, ctfd.WithContext(ctx))
 	if err != nil {
@@ -146,80 +144,79 @@ func (e *external) currentConfig(ctx context.Context) (map[string]string, error)
 	return values, nil
 }
 
-func (e *external) Observe(ctx context.Context, cr *v1alpha1.Theme) (managed.ExternalObservation, error) {
+// mailPassword resolves the SMTP password from its Secret, if configured.
+func (e *external) mailPassword(ctx context.Context, cr *v1alpha1.Settings) (string, error) {
+	mail := cr.Spec.ForProvider.Mail
+	if mail == nil || mail.PasswordSecretRef == nil {
+		return "", nil
+	}
+	ref := mail.PasswordSecretRef
+	s := &corev1.Secret{}
+	if err := e.kube.Get(ctx, types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}, s); err != nil {
+		return "", errors.Wrap(err, errMailSecret)
+	}
+	return string(s.Data[ref.Key]), nil
+}
+
+func (e *external) Observe(ctx context.Context, cr *v1alpha1.Settings) (managed.ExternalObservation, error) {
 	if meta.GetExternalName(cr) == "" {
 		return managed.ExternalObservation{ResourceExists: false}, nil
 	}
 
-	values, err := e.currentConfig(ctx)
+	observed, err := e.currentConfig(ctx)
 	if err != nil {
 		return managed.ExternalObservation{}, errors.Wrap(err, errGet)
 	}
 
-	cr.Status.AtProvider = v1alpha1.ThemeObservation{Name: values[keyTheme]}
+	cr.Status.AtProvider = v1alpha1.SettingsObservation{
+		Name:     observed["ctf_name"],
+		Theme:    observed["ctf_theme"],
+		UserMode: observed["user_mode"],
+	}
 	cr.Status.SetConditions(xpv1.Available())
+
+	pw, err := e.mailPassword(ctx, cr)
+	if err != nil {
+		return managed.ExternalObservation{}, err
+	}
 
 	return managed.ExternalObservation{
 		ResourceExists:   true,
-		ResourceUpToDate: isUpToDate(cr.Spec.ForProvider, values),
+		ResourceUpToDate: isUpToDate(desiredConfig(cr.Spec.ForProvider, pw), observed),
 	}, nil
 }
 
-// isUpToDate reports whether the observed configuration matches the desired
-// theme. Optional fields are only enforced when set.
-func isUpToDate(d v1alpha1.ThemeParameters, got map[string]string) bool {
-	if got[keyTheme] != d.Name {
-		return false
+func (e *external) apply(ctx context.Context, cr *v1alpha1.Settings) error {
+	pw, err := e.mailPassword(ctx, cr)
+	if err != nil {
+		return err
 	}
-	if d.Header != nil && got[keyHeader] != *d.Header {
-		return false
+	body := desiredConfig(cr.Spec.ForProvider, pw)
+	if len(body) == 0 {
+		return nil
 	}
-	if d.Footer != nil && got[keyFooter] != *d.Footer {
-		return false
+	if _, err := e.client.Patch("/configs", body, nil, ctfd.WithContext(ctx)); err != nil {
+		return errors.Wrap(err, errApply)
 	}
-	if d.Settings != nil && got[keySettings] != *d.Settings {
-		return false
-	}
-	return true
+	return nil
 }
 
-// apply PATCHes only the theme-related configuration keys, leaving every other
-// CTFd setting untouched.
-func (e *external) apply(ctx context.Context, d v1alpha1.ThemeParameters) error {
-	body := map[string]any{keyTheme: d.Name}
-	if d.Header != nil {
-		body[keyHeader] = *d.Header
-	}
-	if d.Footer != nil {
-		body[keyFooter] = *d.Footer
-	}
-	if d.Settings != nil {
-		body[keySettings] = *d.Settings
-	}
-
-	_, err := e.client.Patch("/configs", body, nil, ctfd.WithContext(ctx))
-	return errors.Wrap(err, errApply)
-}
-
-func (e *external) Create(ctx context.Context, cr *v1alpha1.Theme) (managed.ExternalCreation, error) {
+func (e *external) Create(ctx context.Context, cr *v1alpha1.Settings) (managed.ExternalCreation, error) {
 	cr.Status.SetConditions(xpv1.Creating())
-
-	if err := e.apply(ctx, cr.Spec.ForProvider); err != nil {
+	if err := e.apply(ctx, cr); err != nil {
 		return managed.ExternalCreation{}, err
 	}
-
 	meta.SetExternalName(cr, externalName)
 	return managed.ExternalCreation{}, nil
 }
 
-func (e *external) Update(ctx context.Context, cr *v1alpha1.Theme) (managed.ExternalUpdate, error) {
-	return managed.ExternalUpdate{}, e.apply(ctx, cr.Spec.ForProvider)
+func (e *external) Update(ctx context.Context, cr *v1alpha1.Settings) (managed.ExternalUpdate, error) {
+	return managed.ExternalUpdate{}, e.apply(ctx, cr)
 }
 
-// Delete is a no-op: a CTFd instance always has an active theme, so deleting
-// the Theme resource only stops Crossplane from managing it; it does not revert
-// CTFd to a previous theme.
-func (e *external) Delete(_ context.Context, cr *v1alpha1.Theme) (managed.ExternalDelete, error) {
+// Delete is a no-op: a CTFd instance always has a configuration. Deleting the
+// Settings resource only stops Crossplane from managing it.
+func (e *external) Delete(_ context.Context, cr *v1alpha1.Settings) (managed.ExternalDelete, error) {
 	cr.Status.SetConditions(xpv1.Deleting())
 	return managed.ExternalDelete{}, nil
 }

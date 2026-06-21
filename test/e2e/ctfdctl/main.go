@@ -280,11 +280,18 @@ func verify(url, token string) error {
 	if err != nil {
 		return err
 	}
+	// These are set by the Settings resource (not by the bootstrap wizard).
+	if got := cfg["ctf_name"]; got != "Barbhack CTF" {
+		return fmt.Errorf("ctf_name = %q, want %q", got, "Barbhack CTF")
+	}
+	if got := cfg["user_mode"]; got != "teams" {
+		return fmt.Errorf("user_mode = %q, want %q", got, "teams")
+	}
 	if got := cfg["ctf_theme"]; got != "core-beta" {
 		return fmt.Errorf("ctf_theme = %q, want %q", got, "core-beta")
 	}
 	if cfg["theme_header"] == "" {
-		return fmt.Errorf("theme_header is empty, expected the value set by the Theme resource")
+		return fmt.Errorf("theme_header is empty, expected the value set by the Settings resource")
 	}
 
 	return nil

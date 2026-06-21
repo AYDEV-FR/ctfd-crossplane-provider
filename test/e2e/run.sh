@@ -64,7 +64,7 @@ print_access() {
     ' 2. Log in as admin:        username: admin    password: password' \
     '' \
     ' 3. Inspect the Crossplane-managed resources:' \
-    "      kubectl --context kind-${CLUSTER} -n default get challenge,page,theme" \
+    "      kubectl --context kind-${CLUSTER} -n default get challenge,page,settings" \
     "      kubectl --context kind-${CLUSTER} -n default describe challenge welcome" \
     '' \
     ' 4. Create / edit your own (the provider reconciles them into CTFd):' \
@@ -174,15 +174,15 @@ fi
 log "applying example resources"
 kapply examples/resources/challenge.yaml
 kapply examples/resources/page.yaml
-kapply examples/resources/theme.yaml
+kapply examples/resources/settings.yaml
 
 log "waiting for managed resources to become Ready"
 if ! "${KCTL[@]}" -n default wait --for=condition=Ready --timeout=240s \
-  challenge/break-the-license challenge/welcome page/rules theme/instance-theme; then
+  challenge/break-the-license challenge/welcome page/rules settings/instance; then
   log "resources did not become Ready; recent provider logs:"
   "${KCTL[@]}" -n provider-ctfd-system logs deploy/provider-ctfd --tail=80 || true
   log "managed resource status:"
-  "${KCTL[@]}" -n default get challenge,page,theme -o wide || true
+  "${KCTL[@]}" -n default get challenge,page,settings -o wide || true
   fail "managed resources never reached Ready"
 fi
 
