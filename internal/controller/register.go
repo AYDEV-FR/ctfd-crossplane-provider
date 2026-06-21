@@ -23,7 +23,7 @@ import (
 	"github.com/AYDEV-FR/ctfd-crossplane-provider/internal/controller/challenge"
 	"github.com/AYDEV-FR/ctfd-crossplane-provider/internal/controller/config"
 	"github.com/AYDEV-FR/ctfd-crossplane-provider/internal/controller/page"
-	"github.com/AYDEV-FR/ctfd-crossplane-provider/internal/controller/theme"
+	"github.com/AYDEV-FR/ctfd-crossplane-provider/internal/controller/settings"
 )
 
 // SetupGated creates all CTFd controllers with safe-start support and adds them to
@@ -33,7 +33,7 @@ func SetupGated(mgr ctrl.Manager, o controller.Options) error {
 		config.Setup,
 		challenge.SetupGated,
 		page.SetupGated,
-		theme.SetupGated,
+		settings.SetupGated,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

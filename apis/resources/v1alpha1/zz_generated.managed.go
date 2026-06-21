@@ -88,42 +88,42 @@ func (mg *Page) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference
 	mg.Spec.WriteConnectionSecretToReference = r
 }
 
-// GetCondition of this Theme.
-func (mg *Theme) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
+// GetCondition of this Settings.
+func (mg *Settings) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return mg.Status.GetCondition(ct)
 }
 
-// GetManagementPolicies of this Theme.
-func (mg *Theme) GetManagementPolicies() xpv1.ManagementPolicies {
+// GetManagementPolicies of this Settings.
+func (mg *Settings) GetManagementPolicies() xpv1.ManagementPolicies {
 	return mg.Spec.ManagementPolicies
 }
 
-// GetProviderConfigReference of this Theme.
-func (mg *Theme) GetProviderConfigReference() *xpv1.ProviderConfigReference {
+// GetProviderConfigReference of this Settings.
+func (mg *Settings) GetProviderConfigReference() *xpv1.ProviderConfigReference {
 	return mg.Spec.ProviderConfigReference
 }
 
-// GetWriteConnectionSecretToReference of this Theme.
-func (mg *Theme) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
+// GetWriteConnectionSecretToReference of this Settings.
+func (mg *Settings) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
 	return mg.Spec.WriteConnectionSecretToReference
 }
 
-// SetConditions of this Theme.
-func (mg *Theme) SetConditions(c ...xpv1.Condition) {
+// SetConditions of this Settings.
+func (mg *Settings) SetConditions(c ...xpv1.Condition) {
 	mg.Status.SetConditions(c...)
 }
 
-// SetManagementPolicies of this Theme.
-func (mg *Theme) SetManagementPolicies(r xpv1.ManagementPolicies) {
+// SetManagementPolicies of this Settings.
+func (mg *Settings) SetManagementPolicies(r xpv1.ManagementPolicies) {
 	mg.Spec.ManagementPolicies = r
 }
 
-// SetProviderConfigReference of this Theme.
-func (mg *Theme) SetProviderConfigReference(r *xpv1.ProviderConfigReference) {
+// SetProviderConfigReference of this Settings.
+func (mg *Settings) SetProviderConfigReference(r *xpv1.ProviderConfigReference) {
 	mg.Spec.ProviderConfigReference = r
 }
 
-// SetWriteConnectionSecretToReference of this Theme.
-func (mg *Theme) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
+// SetWriteConnectionSecretToReference of this Settings.
+func (mg *Settings) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
 	mg.Spec.WriteConnectionSecretToReference = r
 }

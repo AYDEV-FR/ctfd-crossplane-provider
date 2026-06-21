@@ -1,0 +1,45 @@
+# Settings is an instance-wide singleton: keep a single Settings resource per
+# CTFd instance. It writes the CTFd configuration keys you set and leaves all
+# others untouched. Deleting it stops Crossplane from managing the config; it
+# does not reset CTFd.
+apiVersion: resources.ctfd.crossplane.io/v1alpha1
+kind: Settings
+metadata:
+  name: instance
+  namespace: default
+spec:
+  forProvider:
+    name: Barbhack CTF
+    description: Welcome to the CTF.
+    # Appearance (former Theme resource)
+    theme: core-beta
+    themeHeader: |
+      <style>:root { --bs-primary: #6f42c1; }</style>
+    themeFooter: |
+      <p class="text-center">Powered by Crossplane &middot; barbhack</p>
+    # Access
+    challengeVisibility: public
+    scoreVisibility: public
+    paused: false
+    # Users
+    userMode: teams
+    teamSize: 4
+    verifyEmails: false
+    # Pages
+    robotsTxt: |
+      User-agent: *
+      Disallow: /admin
+    # Integrations > Email (password from a Secret, never inline)
+    # mail:
+    #   server: smtp.example.com
+    #   port: "587"
+    #   username: ctfd
+    #   tls: true
+    #   useAuth: true
+    #   passwordSecretRef:
+    #     namespace: default
+    #     name: ctfd-mail
+    #     key: password
+  providerConfigRef:
+    name: example
+    kind: ClusterProviderConfig

@@ -86,7 +86,7 @@ All managed resources are **namespaced** (Crossplane v2,
 |-------------|----------------------------------|---------------------------------------------------------|
 | `Challenge` | `resources.ctfd.crossplane.io`   | A CTFd challenge (standard/dynamic), with inline flags and hints. |
 | `Page`      | `resources.ctfd.crossplane.io`   | A content page (e.g. rules, sponsors).                  |
-| `Theme`     | `resources.ctfd.crossplane.io`   | Instance-wide theme settings (singleton).               |
+| `Settings`  | `resources.ctfd.crossplane.io`   | Instance-wide CTFd config (admin Config page) — singleton. |
 
 Flags and hints are **not** separate resources: they are declared inline on a
 `Challenge` (`spec.forProvider.flags` and `spec.forProvider.hints`) and the
@@ -161,22 +161,24 @@ The challenge controller treats `flags` and `hints` as managed sets: entries are
 matched by value, so editing an entry replaces the underlying CTFd flag/hint and
 removing one deletes it. Deleting the `Challenge` removes its flags and hints too.
 
-### Pages and theme
+### Pages and settings
 
 ```shell
-kubectl apply -f examples/resources/page.yaml    # content pages (rules, etc.)
-kubectl apply -f examples/resources/theme.yaml   # instance-wide theme settings
+kubectl apply -f examples/resources/page.yaml      # content pages (rules, etc.)
+kubectl apply -f examples/resources/settings.yaml  # instance-wide CTFd config
 ```
 
 - **`Page`** is a regular CRUD resource: `title`, `route`, `content`,
   `format` (`markdown`/`html`), `draft`, `hidden`, `authRequired`. Its
   external-name is the CTFd page ID.
-- **`Theme`** is an instance-wide **singleton** — use a single `Theme` per CTFd
-  instance. It writes only the theme-related configuration keys (`ctf_theme`,
-  `theme_header`, `theme_footer`, `theme_settings`) and leaves all other CTFd
-  settings untouched. Because a CTFd instance always has an active theme,
-  deleting the `Theme` resource stops Crossplane from managing it but does not
-  revert CTFd to a previous theme.
+- **`Settings`** is an instance-wide **singleton** — one per CTFd instance. It
+  maps the admin **Config** page to a single resource: name/description,
+  appearance (`theme`, `themeHeader/Footer/Settings`), visibility, start/end/
+  pause, user mode & team size, registration, challenges, HTML sanitization,
+  legal/robots pages, and SMTP (`mail`, password via `passwordSecretRef`). Every
+  field is optional — only the keys you set are written (partial `PATCH`), so
+  unset keys keep CTFd's value. Deleting the resource stops Crossplane from
+  managing the config; it does not reset CTFd.
 
 ## Developing
 
@@ -203,7 +205,7 @@ go test ./...
 apis/
   ctfd.go                       # scheme registration
   v1alpha1/                     # (Cluster)ProviderConfig types
-  resources/v1alpha1/           # Challenge (with inline flags/hints), Page, Theme types
+  resources/v1alpha1/           # Challenge (inline flags/hints), Page, Settings types
 internal/
   clients/ctfd.go               # builds a go-ctfd client from ProviderConfig creds
   controller/
