@@ -26,12 +26,16 @@ spec:
       - type: regex
         content: "^CTF\\{.*\\}$"
         data: case_insensitive
+    # Hints can be chained: a hint lists the indexes (0-based, within this
+    # hints array) of the hints that must be unlocked before it. Here the
+    # second, pricier hint only unlocks once the first one has been revealed.
     hints:
       - title: Stuck?
         content: Look at how the license key is validated.
         cost: 10
       - content: The checksum is little-endian.
         cost: 25
+        prerequisites: [0]
   providerConfigRef:
     name: example
     kind: ProviderConfig
