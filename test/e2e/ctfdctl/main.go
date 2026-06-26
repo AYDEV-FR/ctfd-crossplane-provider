@@ -34,6 +34,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	ctfd "github.com/ctfer-io/go-ctfd/api"
@@ -267,6 +268,11 @@ func verify(url, token string) error {
 	if err := expectCounts(client, btl, 2, 2); err != nil {
 		return err
 	}
+	// The example chains the two hints: the 25-point hint requires the
+	// 10-point one to be unlocked first.
+	if err := expectHintPrereqChain(client, btl); err != nil {
+		return err
+	}
 
 	pages, _, err := client.GetPages(nil)
 	if err != nil {
@@ -326,6 +332,69 @@ func expectCounts(client *ctfd.Client, ch *ctfd.Challenge, flags, hints int) err
 		return fmt.Errorf("challenge %q has %d hints, want %d", ch.Name, len(hs), hints)
 	}
 	return nil
+}
+
+// expectHintPrereqChain asserts the provider wired the challenge's hints into
+// the prerequisite chain declared in the example: the costlier hint must
+// require the cheaper one, and the cheaper one must have no prerequisite. The
+// challenge hint listing omits requirements, so each hint is fetched
+// individually (with preview, as admin) to read them back.
+func expectHintPrereqChain(client *ctfd.Client, ch *ctfd.Challenge) error {
+	hints, err := fullHints(client, ch)
+	if err != nil {
+		return err
+	}
+
+	base := hintByCost(hints, 10)  // free/cheaper hint, no prerequisite
+	gated := hintByCost(hints, 25) // requires base
+	if base == nil || gated == nil {
+		return fmt.Errorf("challenge %q: expected hints costing 10 and 25, got %d hints", ch.Name, len(hints))
+	}
+
+	if prereqs := hintPrereqs(base); len(prereqs) != 0 {
+		return fmt.Errorf("challenge %q: 10-point hint should have no prerequisites, got %v", ch.Name, prereqs)
+	}
+	if got := hintPrereqs(gated); len(got) != 1 || got[0] != base.ID {
+		return fmt.Errorf("challenge %q: 25-point hint prerequisites = %v, want [%d]", ch.Name, got, base.ID)
+	}
+	return nil
+}
+
+// hintByCost returns the first hint with the given cost, or nil.
+func hintByCost(hints []*ctfd.Hint, cost int) *ctfd.Hint {
+	for _, h := range hints {
+		if h.Cost == cost {
+			return h
+		}
+	}
+	return nil
+}
+
+// hintPrereqs returns a hint's prerequisite IDs, or nil when it has none.
+func hintPrereqs(h *ctfd.Hint) []int {
+	if h.Requirements == nil {
+		return nil
+	}
+	return h.Requirements.Prerequisites
+}
+
+// fullHints lists a challenge's hints and resolves each one individually (with
+// preview, as admin), since the challenge hint listing omits requirements.
+func fullHints(client *ctfd.Client, ch *ctfd.Challenge) ([]*ctfd.Hint, error) {
+	hs, _, err := client.GetChallengeHints(ch.ID)
+	if err != nil {
+		return nil, fmt.Errorf("listing hints of %q: %w", ch.Name, err)
+	}
+	preview := true
+	out := make([]*ctfd.Hint, 0, len(hs))
+	for _, h := range hs {
+		full, _, err := client.GetHint(strconv.Itoa(h.ID), &ctfd.GetHintParams{Preview: &preview})
+		if err != nil {
+			return nil, fmt.Errorf("getting hint %d of %q: %w", h.ID, ch.Name, err)
+		}
+		out = append(out, full)
+	}
+	return out, nil
 }
 
 func anyPage(pages []*ctfd.Page, route string) bool {

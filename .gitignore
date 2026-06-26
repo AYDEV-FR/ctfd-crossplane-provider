@@ -13,3 +13,4 @@ cover.out
 
 # Stray go build binary
 /ctfdctl
+/test/e2e/ctfdctl/ctfdctl
