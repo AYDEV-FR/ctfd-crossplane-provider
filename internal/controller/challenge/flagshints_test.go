@@ -122,3 +122,88 @@ func TestHintsUpToDate(t *testing.T) {
 		})
 	}
 }
+
+func TestHintsUpToDatePrerequisites(t *testing.T) {
+	sp := func(s string) *string { return &s }
+	// Hint #1 ("and there") must be unlocked before hint #0 ("look here").
+	desired := []v1alpha1.ChallengeHint{
+		{Content: "look here", Cost: 10, Prerequisites: []int{1}},
+		{Content: "and there", Cost: 25},
+	}
+
+	cases := map[string]struct {
+		existing []*ctfd.Hint
+		want     bool
+	}{
+		"PrereqWired": {
+			existing: []*ctfd.Hint{
+				{ID: 7, Content: sp("and there"), Cost: 25},
+				{ID: 4, Content: sp("look here"), Cost: 10, Requirements: &ctfd.Requirements{Prerequisites: []int{7}}},
+			},
+			want: true,
+		},
+		"PrereqMissing": {
+			existing: []*ctfd.Hint{
+				{ID: 7, Content: sp("and there"), Cost: 25},
+				{ID: 4, Content: sp("look here"), Cost: 10},
+			},
+			want: false,
+		},
+		"PrereqWrongTarget": {
+			existing: []*ctfd.Hint{
+				{ID: 7, Content: sp("and there"), Cost: 25},
+				{ID: 4, Content: sp("look here"), Cost: 10, Requirements: &ctfd.Requirements{Prerequisites: []int{99}}},
+			},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			if got := hintsUpToDate(desired, tc.existing); got != tc.want {
+				t.Fatalf("hintsUpToDate() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestValidateHintPrereqs(t *testing.T) {
+	cases := map[string]struct {
+		desired []v1alpha1.ChallengeHint
+		wantErr bool
+	}{
+		"Valid": {
+			desired: []v1alpha1.ChallengeHint{
+				{Content: "a"},
+				{Content: "b", Prerequisites: []int{0}},
+			},
+		},
+		"OutOfRange": {
+			desired: []v1alpha1.ChallengeHint{
+				{Content: "a", Prerequisites: []int{3}},
+			},
+			wantErr: true,
+		},
+		"SelfReference": {
+			desired: []v1alpha1.ChallengeHint{
+				{Content: "a", Prerequisites: []int{0}},
+			},
+			wantErr: true,
+		},
+		"Cycle": {
+			desired: []v1alpha1.ChallengeHint{
+				{Content: "a", Prerequisites: []int{1}},
+				{Content: "b", Prerequisites: []int{0}},
+			},
+			wantErr: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			if err := validateHintPrereqs(tc.desired); (err != nil) != tc.wantErr {
+				t.Fatalf("validateHintPrereqs() error = %v, wantErr %v", err, tc.wantErr)
+			}
+		})
+	}
+}

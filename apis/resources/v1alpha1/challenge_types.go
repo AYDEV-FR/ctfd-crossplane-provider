@@ -160,6 +160,22 @@ type ChallengeHint struct {
 	// +optional
 	// +kubebuilder:default=0
 	Cost int `json:"cost,omitempty"`
+
+	// Prerequisites are the hints a player must unlock before this hint
+	// becomes available. CTFd assigns hint IDs only at creation time, so each
+	// prerequisite is referenced by the 0-based index of the target hint in
+	// this challenge's hints list. This lets hints be chained into a
+	// progressive, ordered sequence. An index must point to another hint in
+	// the same list (no self-references and no cycles).
+	// +optional
+	Prerequisites []int `json:"prerequisites,omitempty"`
+
+	// Anonymize controls how the hint behaves while its prerequisites are not
+	// met. It has no effect without Prerequisites. See Requirements.Anonymize
+	// for the accepted values.
+	// +optional
+	// +kubebuilder:validation:Enum=true;false;preview
+	Anonymize *string `json:"anonymize,omitempty"`
 }
 
 // ChallengeObservation are the observable fields of a Challenge.
