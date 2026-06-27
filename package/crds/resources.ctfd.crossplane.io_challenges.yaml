@@ -214,8 +214,10 @@ spec:
                         type: array
                     type: object
                   state:
-                    default: hidden
-                    description: State of the challenge, either "hidden" or "visible".
+                    description: |-
+                      State of the challenge, either "hidden" or "visible". When left unset the
+                      state is not managed: it is not reconciled, and CTFd's own default applies
+                      at creation.
                     enum:
                     - hidden
                     - visible

@@ -1,0 +1,21 @@
+# A Challenge that deliberately omits `state`. The provider must treat the
+# state as unmanaged: it lets CTFd pick the creation default and never
+# reconciles the field. The e2e flips this challenge's state out-of-band and
+# asserts the provider does not revert it.
+apiVersion: resources.ctfd.crossplane.io/v1alpha1
+kind: Challenge
+metadata:
+  name: no-state
+  namespace: default
+spec:
+  forProvider:
+    name: No State Challenge
+    category: misc
+    description: Its visibility is managed in CTFd, not by the provider.
+    type: standard
+    value: 100
+    flags:
+      - content: CTF{unmanaged_state}
+  providerConfigRef:
+    name: example
+    kind: ProviderConfig

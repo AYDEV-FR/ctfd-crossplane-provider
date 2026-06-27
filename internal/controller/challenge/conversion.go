@@ -22,23 +22,13 @@ import (
 	"github.com/AYDEV-FR/ctfd-crossplane-provider/apis/resources/v1alpha1"
 )
 
-const (
-	defaultType  = "standard"
-	defaultState = "hidden"
-)
+const defaultType = "standard"
 
 func typeOrDefault(t string) string {
 	if t == "" {
 		return defaultType
 	}
 	return t
-}
-
-func stateOrDefault(s string) string {
-	if s == "" {
-		return defaultState
-	}
-	return s
 }
 
 // postParams builds the CTFd creation payload from the desired parameters.
@@ -48,7 +38,7 @@ func postParams(p v1alpha1.ChallengeParameters) *ctfd.PostChallengesParams {
 		Category:       p.Category,
 		Description:    p.Description,
 		Type:           typeOrDefault(p.Type),
-		State:          stateOrDefault(p.State),
+		State:          p.State,
 		Attribution:    p.Attribution,
 		ConnectionInfo: p.ConnectionInfo,
 		Function:       p.Function,
@@ -68,12 +58,18 @@ func postParams(p v1alpha1.ChallengeParameters) *ctfd.PostChallengesParams {
 }
 
 // patchParams builds the CTFd update payload from the desired parameters.
-func patchParams(p v1alpha1.ChallengeParameters) *ctfd.PatchChallengeParams {
+// current is the state observed in CTFd; it is preserved when the user leaves
+// State unset, so an unmanaged state is never blanked by an update.
+func patchParams(p v1alpha1.ChallengeParameters, current string) *ctfd.PatchChallengeParams {
+	state := p.State
+	if state == "" {
+		state = current
+	}
 	out := &ctfd.PatchChallengeParams{
 		Name:           p.Name,
 		Category:       p.Category,
 		Description:    p.Description,
-		State:          stateOrDefault(p.State),
+		State:          state,
 		Attribution:    p.Attribution,
 		ConnectionInfo: p.ConnectionInfo,
 		Function:       p.Function,
@@ -121,7 +117,7 @@ func isUpToDate(p v1alpha1.ChallengeParameters, ch *ctfd.Challenge, req *ctfd.Re
 	case ch.Name != p.Name,
 		ch.Category != p.Category,
 		ch.Description != p.Description,
-		ch.State != stateOrDefault(p.State),
+		p.State != "" && ch.State != p.State,
 		ch.Type != typeOrDefault(p.Type):
 		return false
 	}

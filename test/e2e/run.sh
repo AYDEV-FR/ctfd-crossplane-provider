@@ -205,4 +205,31 @@ done
 
 CTFD_URL="http://localhost:${PF_PORT}" "$OUT/ctfdctl" -mode verify -token "$TOKEN"
 
+# ---------------------------------------------------------------------------
+# Regression: a Challenge that omits `state` must be left unmanaged — the
+# provider lets CTFd own the field and never reconciles it. Create such a
+# challenge, flip its state out-of-band, nudge a reconcile, and assert the
+# provider does NOT revert it (older builds forced unset state back to "hidden").
+log "asserting an unset Challenge state is not reconciled"
+kapply test/e2e/manifests/challenge-no-state.yaml
+if ! "${KCTL[@]}" -n default wait --for=condition=Ready --timeout=180s challenge/no-state; then
+  "${KCTL[@]}" -n provider-ctfd-system logs deploy/provider-ctfd --tail=80 || true
+  "${KCTL[@]}" -n default get challenge/no-state -o wide || true
+  fail "challenge/no-state never reached Ready"
+fi
+
+CTFD_BASE="http://localhost:${PF_PORT}"
+log "flipping 'No State Challenge' to visible directly in CTFd (out-of-band)"
+CTFD_URL="$CTFD_BASE" "$OUT/ctfdctl" -mode setstate -challenge "No State Challenge" -state visible -token "$TOKEN"
+
+# Force an immediate reconcile (annotation change -> watch event) so we don't
+# merely wait out the poll interval, then give the provider time to act.
+"${KCTL[@]}" -n default annotate challenge/no-state "e2e.ctfd/nudge=$(date +%s)" --overwrite >/dev/null
+sleep 20
+
+if ! CTFD_URL="$CTFD_BASE" "$OUT/ctfdctl" -mode checkstate -challenge "No State Challenge" -state visible -token "$TOKEN"; then
+  "${KCTL[@]}" -n provider-ctfd-system logs deploy/provider-ctfd --tail=80 || true
+  fail "provider reverted the unmanaged state (expected it to stay 'visible')"
+fi
+
 log "✅ e2e succeeded"

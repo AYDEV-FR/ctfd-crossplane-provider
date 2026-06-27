@@ -199,7 +199,7 @@ func (e *external) Update(ctx context.Context, cr *v1alpha1.Challenge) (managed.
 		return managed.ExternalUpdate{}, errors.Wrap(err, errBadID)
 	}
 
-	if _, _, err := e.client.PatchChallenge(cid, patchParams(cr.Spec.ForProvider), ctfd.WithContext(ctx)); err != nil {
+	if _, _, err := e.client.PatchChallenge(cid, patchParams(cr.Spec.ForProvider, cr.Status.AtProvider.State), ctfd.WithContext(ctx)); err != nil {
 		return managed.ExternalUpdate{}, errors.Wrap(err, errUpdate)
 	}
 

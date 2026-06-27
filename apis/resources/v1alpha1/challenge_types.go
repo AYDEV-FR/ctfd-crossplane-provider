@@ -59,9 +59,10 @@ type ChallengeParameters struct {
 	// +kubebuilder:default=standard
 	Type string `json:"type,omitempty"`
 
-	// State of the challenge, either "hidden" or "visible".
+	// State of the challenge, either "hidden" or "visible". When left unset the
+	// state is not managed: it is not reconciled, and CTFd's own default applies
+	// at creation.
 	// +optional
-	// +kubebuilder:default=hidden
 	// +kubebuilder:validation:Enum=hidden;visible
 	State string `json:"state,omitempty"`
 
