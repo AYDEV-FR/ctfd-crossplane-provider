@@ -53,7 +53,8 @@ func TestIsUpToDate(t *testing.T) {
 	}{
 		"InSync":            {mutate: func(*v1alpha1.ChallengeParameters, *ctfd.Challenge) {}, want: true},
 		"DefaultedType":     {mutate: func(p *v1alpha1.ChallengeParameters, _ *ctfd.Challenge) { p.Type = "" }, want: true},
-		"DefaultedState":    {mutate: func(p *v1alpha1.ChallengeParameters, ch *ctfd.Challenge) { p.State = ""; ch.State = "hidden" }, want: true},
+		"UnsetStateIgnored": {mutate: func(p *v1alpha1.ChallengeParameters, ch *ctfd.Challenge) { p.State = ""; ch.State = "hidden" }, want: true},
+		"StateDrift":        {mutate: func(p *v1alpha1.ChallengeParameters, ch *ctfd.Challenge) { p.State = "visible"; ch.State = "hidden" }, want: false},
 		"NameDrift":         {mutate: func(_ *v1alpha1.ChallengeParameters, ch *ctfd.Challenge) { ch.Name = "other" }, want: false},
 		"ValueDrift":        {mutate: func(_ *v1alpha1.ChallengeParameters, ch *ctfd.Challenge) { ch.Value = 200 }, want: false},
 		"UnsetValueIgnored": {mutate: func(p *v1alpha1.ChallengeParameters, ch *ctfd.Challenge) { p.Value = nil; ch.Value = 999 }, want: true},

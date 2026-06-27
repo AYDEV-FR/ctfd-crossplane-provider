@@ -23,6 +23,9 @@ limitations under the License.
 //     in-cluster bootstrap Job so the whole stack comes up with no manual step.
 //   - verify:    assert, through the CTFd API, that the provider created the
 //     expected objects.
+//   - setstate:  set a challenge's state directly in CTFd (out-of-band), used to
+//     simulate a change the provider must not revert when state is unmanaged.
+//   - checkstate: assert a challenge currently has the given state.
 //
 // It talks to CTFd through the same github.com/ctfer-io/go-ctfd client the
 // provider uses.
@@ -56,6 +59,8 @@ func main() {
 	secretNS := flag.String("secret-namespace", envOr("SECRET_NAMESPACE", "default"), "namespace of the credentials Secret (bootstrap mode)")
 	secretName := flag.String("secret-name", envOr("SECRET_NAME", "ctfd-creds"), "name of the credentials Secret (bootstrap mode)")
 	secretKey := flag.String("secret-key", envOr("SECRET_KEY", "credentials"), "key inside the credentials Secret (bootstrap mode)")
+	challenge := flag.String("challenge", "", "challenge name (setstate/checkstate modes)")
+	state := flag.String("state", "", "expected/desired challenge state (setstate/checkstate modes)")
 	flag.Parse()
 
 	switch *mode {
@@ -78,6 +83,22 @@ func main() {
 			fatalf("verify: %v", err)
 		}
 		fmt.Fprintln(os.Stderr, "[ctfdctl] all assertions passed")
+	case "setstate":
+		requireFlag("challenge", *challenge)
+		requireFlag("state", *state)
+		requireFlag("token", *token)
+		if err := setState(*url, *token, *challenge, *state); err != nil {
+			fatalf("setstate: %v", err)
+		}
+		fmt.Fprintf(os.Stderr, "[ctfdctl] set challenge %q state to %q\n", *challenge, *state)
+	case "checkstate":
+		requireFlag("challenge", *challenge)
+		requireFlag("state", *state)
+		requireFlag("token", *token)
+		if err := checkState(*url, *token, *challenge, *state); err != nil {
+			fatalf("checkstate: %v", err)
+		}
+		fmt.Fprintf(os.Stderr, "[ctfdctl] challenge %q state is %q as expected\n", *challenge, *state)
 	default:
 		fatalf("unknown -mode %q (want setup, bootstrap or verify)", *mode)
 	}
@@ -303,6 +324,58 @@ func verify(url, token string) error {
 	return nil
 }
 
+// setState sets a challenge's state directly in CTFd, identifying it by name.
+// It is used by the e2e test to mutate state out-of-band so the provider's
+// "unset state is not reconciled" behavior can be asserted.
+func setState(url, token, name, state string) error {
+	client := ctfd.NewClient(url, "", "", token)
+	ch, err := challengeByName(client, name)
+	if err != nil {
+		return err
+	}
+	// PatchChallenge requires Name/Category/Description; fetch the full
+	// challenge so those round-trip unchanged.
+	full, _, err := client.GetChallenge(ch.ID)
+	if err != nil {
+		return fmt.Errorf("getting challenge %q: %w", name, err)
+	}
+	if _, _, err := client.PatchChallenge(full.ID, &ctfd.PatchChallengeParams{
+		Name:        full.Name,
+		Category:    full.Category,
+		Description: full.Description,
+		State:       state,
+	}); err != nil {
+		return fmt.Errorf("patching state of %q: %w", name, err)
+	}
+	return nil
+}
+
+// checkState asserts a challenge currently has the expected state.
+func checkState(url, token, name, want string) error {
+	client := ctfd.NewClient(url, "", "", token)
+	ch, err := challengeByName(client, name)
+	if err != nil {
+		return err
+	}
+	if ch.State != want {
+		return fmt.Errorf("challenge %q state = %q, want %q", name, ch.State, want)
+	}
+	return nil
+}
+
+// challengeByName returns the challenge with the given name (admin view).
+func challengeByName(client *ctfd.Client, name string) (*ctfd.Challenge, error) {
+	chs, err := allChallenges(client)
+	if err != nil {
+		return nil, err
+	}
+	ch, ok := chs[name]
+	if !ok {
+		return nil, fmt.Errorf("challenge %q not found", name)
+	}
+	return ch, nil
+}
+
 func allChallenges(client *ctfd.Client) (map[string]*ctfd.Challenge, error) {
 	view := "admin"
 	chs, _, err := client.GetChallenges(&ctfd.GetChallengesParams{View: &view})
@@ -423,6 +496,13 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// requireFlag aborts when a required flag was left empty.
+func requireFlag(name, value string) {
+	if value == "" {
+		fatalf("-%s is required", name)
+	}
 }
 
 func fatalf(format string, args ...any) {
