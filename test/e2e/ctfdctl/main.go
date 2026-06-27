@@ -83,25 +83,30 @@ func main() {
 			fatalf("verify: %v", err)
 		}
 		fmt.Fprintln(os.Stderr, "[ctfdctl] all assertions passed")
-	case "setstate":
-		requireFlag("challenge", *challenge)
-		requireFlag("state", *state)
-		requireFlag("token", *token)
-		if err := setState(*url, *token, *challenge, *state); err != nil {
-			fatalf("setstate: %v", err)
-		}
-		fmt.Fprintf(os.Stderr, "[ctfdctl] set challenge %q state to %q\n", *challenge, *state)
-	case "checkstate":
-		requireFlag("challenge", *challenge)
-		requireFlag("state", *state)
-		requireFlag("token", *token)
-		if err := checkState(*url, *token, *challenge, *state); err != nil {
-			fatalf("checkstate: %v", err)
-		}
-		fmt.Fprintf(os.Stderr, "[ctfdctl] challenge %q state is %q as expected\n", *challenge, *state)
+	case "setstate", "checkstate":
+		stateMode(*mode, *url, *token, *challenge, *state)
 	default:
 		fatalf("unknown -mode %q (want setup, bootstrap or verify)", *mode)
 	}
+}
+
+// stateMode handles the setstate/checkstate modes: both require the same flags
+// and differ only in whether they write or assert the challenge's state.
+func stateMode(mode, url, token, challenge, state string) {
+	requireFlag("challenge", challenge)
+	requireFlag("state", state)
+	requireFlag("token", token)
+	if mode == "setstate" {
+		if err := setState(url, token, challenge, state); err != nil {
+			fatalf("setstate: %v", err)
+		}
+		fmt.Fprintf(os.Stderr, "[ctfdctl] set challenge %q state to %q\n", challenge, state)
+		return
+	}
+	if err := checkState(url, token, challenge, state); err != nil {
+		fatalf("checkstate: %v", err)
+	}
+	fmt.Fprintf(os.Stderr, "[ctfdctl] challenge %q state is %q as expected\n", challenge, state)
 }
 
 // bootstrap waits for CTFd, ensures it is set up, mints an admin token and
