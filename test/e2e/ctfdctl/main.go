@@ -334,20 +334,16 @@ func verify(url, token string) error {
 // "unset state is not reconciled" behavior can be asserted.
 func setState(url, token, name, state string) error {
 	client := ctfd.NewClient(url, "", "", token)
-	ch, err := challengeByName(client, name)
+	// PatchChallenge requires Name/Category/Description; the full challenge
+	// carries those so they round-trip unchanged.
+	ch, err := fullChallengeByName(client, name)
 	if err != nil {
 		return err
 	}
-	// PatchChallenge requires Name/Category/Description; fetch the full
-	// challenge so those round-trip unchanged.
-	full, _, err := client.GetChallenge(ch.ID)
-	if err != nil {
-		return fmt.Errorf("getting challenge %q: %w", name, err)
-	}
-	if _, _, err := client.PatchChallenge(full.ID, &ctfd.PatchChallengeParams{
-		Name:        full.Name,
-		Category:    full.Category,
-		Description: full.Description,
+	if _, _, err := client.PatchChallenge(ch.ID, &ctfd.PatchChallengeParams{
+		Name:        ch.Name,
+		Category:    ch.Category,
+		Description: ch.Description,
 		State:       state,
 	}); err != nil {
 		return fmt.Errorf("patching state of %q: %w", name, err)
@@ -358,7 +354,7 @@ func setState(url, token, name, state string) error {
 // checkState asserts a challenge currently has the expected state.
 func checkState(url, token, name, want string) error {
 	client := ctfd.NewClient(url, "", "", token)
-	ch, err := challengeByName(client, name)
+	ch, err := fullChallengeByName(client, name)
 	if err != nil {
 		return err
 	}
@@ -366,6 +362,21 @@ func checkState(url, token, name, want string) error {
 		return fmt.Errorf("challenge %q state = %q, want %q", name, ch.State, want)
 	}
 	return nil
+}
+
+// fullChallengeByName resolves a challenge by name and fetches its full record.
+// The challenges list endpoint omits fields like state, so callers that need
+// them must read the challenge individually.
+func fullChallengeByName(client *ctfd.Client, name string) (*ctfd.Challenge, error) {
+	ch, err := challengeByName(client, name)
+	if err != nil {
+		return nil, err
+	}
+	full, _, err := client.GetChallenge(ch.ID)
+	if err != nil {
+		return nil, fmt.Errorf("getting challenge %q: %w", name, err)
+	}
+	return full, nil
 }
 
 // challengeByName returns the challenge with the given name (admin view).
